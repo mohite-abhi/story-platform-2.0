@@ -1,0 +1,10 @@
+{% extends 'stories/base.html' %}
+
+{% block content %}
+    <h2>Story List</h2>
+    <ul>
+        {% for story in stories %}
+            <li>{{ story.id }}: {{ story.title }} <em>-</em> {{ story.author.username }} | {{ story.status }}</li>
+        {% endfor %}
+    </ul>
+{% endblock %}

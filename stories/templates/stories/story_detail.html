@@ -1,0 +1,12 @@
+{% extends 'stories/base.html' %}
+
+{% block content %}
+    <h2>Story Detail</h2>
+    {% if story.status == "draft" %}
+        <p><strong>Draft</strong></p>
+    {% endif %}
+    <p>Title: {{ story.title }}</p>
+    <p>Content: {{ story.content }}</p>
+    <p>Author: {{ story.author.username }}</p>
+    <p>Created At: {{ story.created_at }}</p>
+{% endblock %}
