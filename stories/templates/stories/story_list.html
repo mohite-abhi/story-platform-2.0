@@ -1,10 +1,27 @@
-{% extends 'stories/base.html' %}
+{% extends 'base.html' %}
 
 {% block content %}
     <h2>Story List</h2>
+    <hr/>
     <ul>
         {% for story in stories %}
-            <li>{{ story.id }}: {{ story.title }} <em>-</em> {{ story.author.username }} | {{ story.status }}</li>
+            <div>
+                <div>
+                    <a href="{% url 'story_detail' story.id %}">
+                        {{ story.title }}
+                    </a>
+                </div>
+                <div>
+                    Author: {{ story.author.username }}
+                </div>
+                <div>
+                    Status: {{ story.status }}
+                </div>
+                <div>
+                    Created: {{ story.created_at }}
+                </div>
+                <p></p>
+            </div>
         {% endfor %}
     </ul>
 {% endblock %}
