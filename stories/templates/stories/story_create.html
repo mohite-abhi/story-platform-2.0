@@ -1,0 +1,12 @@
+<form method="post" action="{% url 'story_create' %}">
+    {% csrf_token %}
+
+    <label for="title">Title: </label>
+    <input type="text" name="title">
+    <label for="content">Content: </label>
+    <input type="text" name="content">
+    <label for="status">Status: </label>
+    <input type="text" name="status">
+
+    <input type="submit" value="submit">
+</form>
