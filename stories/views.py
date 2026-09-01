@@ -1,6 +1,8 @@
 from django.shortcuts import render
 from django.http import HttpResponse
 from .models import Story
+from django.contrib.auth import get_user_model
+from .forms import StoryForm
 
 def story_list(request):
     status = request.GET.get('status')
@@ -22,18 +24,33 @@ def story_detail(request, story_id):
 
 
 def story_create(request):
-    if request.method == "GET":
-        return render(request, 'stories/story_create.html')
 
-    elif request.method == "POST":
-        title = request.POST["title"]
-        content = request.POST["content"]
-        status = request.POST["status"]
+    if request.method == "POST":
+        form = StoryForm(request.POST)
 
-        response = {
-            "title": title,
-            "content": content,
-            "status": status
-        }
+        if form.is_valid():
+            cleaned_form = form.cleaned_data
 
-        return HttpResponse(str(response))
+            User = get_user_model()
+            user = User.objects.get(id=1)
+
+            Story.objects.create(
+                title=cleaned_form["title"],
+                author=user,
+                content=cleaned_form["content"],
+                status=cleaned_form["status"]
+            )
+
+            response = {
+                "title": cleaned_form["title"],
+                "content": cleaned_form["content"],
+                "status": cleaned_form["status"]
+            }
+            
+            return HttpResponse(str(response))
+        
+    else:
+        form = StoryForm()
+
+    return render(request, "stories/story_create.html", {"form":form})
+        
