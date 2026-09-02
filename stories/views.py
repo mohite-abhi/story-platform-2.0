@@ -29,17 +29,25 @@ def story_create(request):
         form = StoryForm(request.POST)
 
         if form.is_valid():
-            cleaned_form = form.cleaned_data
+            # cleaned_form = form.cleaned_data
+
+            new_story = form.save(commit=False)
 
             User = get_user_model()
             user = User.objects.get(id=1)
 
-            Story.objects.create(
-                title=cleaned_form["title"],
-                author=user,
-                content=cleaned_form["content"],
-                status=cleaned_form["status"]
-            )
+            new_story.author = user
+
+            new_story.save()
+
+            # Story.objects.create(
+            #     title=cleaned_form["title"],
+            #     author=user,
+            #     content=cleaned_form["content"],
+            #     status=cleaned_form["status"]
+            # )
+
+            cleaned_form = form.cleaned_data
 
             response = {
                 "title": cleaned_form["title"],

@@ -1,6 +1,17 @@
 from django import forms
+from .models import Story
 
-class StoryForm(forms.Form):
-    title = forms.CharField(max_length=250)
-    content = forms.CharField()
-    status = forms.CharField(max_length=100)
+class StoryForm(forms.ModelForm):
+    class Meta:
+        model = Story
+        fields = ["title", "content", "status"]
+
+    def clean_title(self):
+        title = self.cleaned_data["title"]
+
+        if len(title) < 5:
+            raise forms.ValidationError(
+                "Title should be at least 5 characters."
+            )
+
+        return title
