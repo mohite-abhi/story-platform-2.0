@@ -1,4 +1,4 @@
-from django.shortcuts import render
+from django.shortcuts import render, redirect, reverse, get_object_or_404
 from django.http import HttpResponse
 from .models import Story
 from django.contrib.auth import get_user_model
@@ -62,3 +62,29 @@ def story_create(request):
 
     return render(request, "stories/story_create.html", {"form":form})
         
+
+def story_edit(request, story_id):
+    story = get_object_or_404(Story, id=story_id)
+    if request.method == "POST":
+        story_form = StoryForm(request.POST, instance=story)
+        if story_form.is_valid():
+            story_form.save()
+
+        else:
+            return render(request, "stories/story_edit.html", {"form": story_form, "story_id": story_id})
+        
+    else:
+        story_form = StoryForm(instance=story)
+
+        return render(request, "stories/story_edit.html", {"form": story_form, "story_id": story_id})
+    return redirect(reverse("story_detail", args=[story_id]))
+
+
+def story_delete(request, story_id):
+    story = get_object_or_404(Story, id=story_id)
+    if request.method == "POST":
+        story.delete()
+
+    else:
+        return render(request, "stories/story_delete.html", {"story_id": story_id})
+    return redirect(reverse("story_list"))

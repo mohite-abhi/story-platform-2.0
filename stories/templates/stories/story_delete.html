@@ -1,0 +1,4 @@
+<form method="post" action="{% url 'story_delete' story_id %}">
+    {% csrf_token %}
+    <input type="submit" value="submit">
+</form>
