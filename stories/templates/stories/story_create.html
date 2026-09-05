@@ -1,3 +1,8 @@
+{% extends 'base.html' %}
+
+{% block content %}
+<h2>Story Create</h2>
+
 <form method="post" action="{% url 'story_create' %}">
     {% csrf_token %}
 
@@ -5,3 +10,7 @@
 
     <input type="submit" value="submit">
 </form>
+
+<a href="{% url 'story_list' %}"><p>← Back to Stories</p></a>
+
+{% endblock %}

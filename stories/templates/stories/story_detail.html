@@ -2,6 +2,8 @@
 
 {% block content %}
     <h2>Story Detail</h2>
+    <p><a href="{% url 'story_edit' story.id %}">Edit Story</a> | <a href="{% url 'story_delete' story.id %}">Delete Story</a></p>
+
 
     <p>{{ story.title }}</p>
     <div>Author: {{ story.author.username }}</div>

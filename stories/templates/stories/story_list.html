@@ -2,6 +2,7 @@
 
 {% block content %}
     <h2>Story List</h2>
+    <p><a href="{% url 'story_create' %}">Create Story</a></p>
     <hr/>
     <ul>
         {% for story in stories %}

@@ -39,7 +39,7 @@ def story_create(request):
             new_story.author = user
 
             new_story.save()
-
+            
             # Story.objects.create(
             #     title=cleaned_form["title"],
             #     author=user,
@@ -47,15 +47,16 @@ def story_create(request):
             #     status=cleaned_form["status"]
             # )
 
-            cleaned_form = form.cleaned_data
+            # cleaned_form = form.cleaned_data
 
-            response = {
-                "title": cleaned_form["title"],
-                "content": cleaned_form["content"],
-                "status": cleaned_form["status"]
-            }
+            # response = {
+            #     "title": cleaned_form["title"],
+            #     "content": cleaned_form["content"],
+            #     "status": cleaned_form["status"]
+            # }
             
-            return HttpResponse(str(response))
+            # return HttpResponse(str(response))
+            return redirect(reverse("story_detail", args=[new_story.id]))
         
     else:
         form = StoryForm()

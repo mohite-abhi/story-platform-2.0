@@ -1,4 +1,15 @@
+{% extends 'base.html' %}
+
+{% block content %}
+<h2>Story Delete</h2>
+
+<p>Are you sure you want to delete this story?</p>
+
 <form method="post" action="{% url 'story_delete' story_id %}">
     {% csrf_token %}
     <input type="submit" value="submit">
 </form>
+
+<a href="{% url 'story_detail' story_id %}"><p>← Back to Story Detail</p></a>
+
+{% endblock %}
