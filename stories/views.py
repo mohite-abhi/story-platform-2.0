@@ -4,6 +4,13 @@ from .models import Story
 from django.contrib.auth.decorators import login_required
 from .forms import StoryForm
 
+
+from rest_framework.response import Response
+from rest_framework.decorators import api_view
+
+from .serializers import StorySerializer
+
+
 def story_list(request):
     status = request.GET.get('status')
     if status:
@@ -70,3 +77,12 @@ def story_delete(request, story_id):
         return render(request, "stories/story_delete.html", {"story_id": story_id})
 
     return redirect(reverse("story_list"))
+
+
+@api_view(["GET"])
+def story_list_api(request):
+    stories = Story.objects.all()
+
+    serializer = StorySerializer(stories, many=True)
+
+    return Response(serializer.data)
