@@ -6,7 +6,8 @@ from .forms import StoryForm
 
 
 from rest_framework.response import Response
-from rest_framework.decorators import api_view
+from rest_framework.views import APIView
+from rest_framework import status
 
 from .serializers import StorySerializer
 
@@ -79,10 +80,32 @@ def story_delete(request, story_id):
     return redirect(reverse("story_list"))
 
 
-@api_view(["GET"])
-def story_list_api(request):
-    stories = Story.objects.all()
+class StoryListAPIView(APIView):
+    
+    def get(self, request):
+        stories = Story.objects.all()
+        serializer = StorySerializer(stories, many=True)
 
-    serializer = StorySerializer(stories, many=True)
+        return Response(
+            serializer.data,
+            status=status.HTTP_200_OK
+        )
 
-    return Response(serializer.data)
+
+class StoryDetailAPIView(APIView):
+
+    def get(self, request, pk):
+        try:
+            story = Story.objects.get(pk=pk)
+        except Story.DoesNotExist:
+            return Response(
+                {"detail": "Story not found."},
+                status=status.HTTP_404_NOT_FOUND
+            )
+
+        serializer = StorySerializer(story)
+
+        return Response(
+            serializer.data,
+            status=status.HTTP_200_OK
+        )
