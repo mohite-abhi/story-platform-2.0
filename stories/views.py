@@ -92,6 +92,19 @@ class StoryListAPIView(APIView):
         )
 
 
+    def post(self, request):
+        serializer = StorySerializer(data=request.data)
+
+        serializer.is_valid(raise_exception=True)
+
+        story = serializer.save(author=request.user)
+
+        return Response(
+            StorySerializer(story).data,
+            status=status.HTTP_201_CREATED
+        )
+
+
 class StoryDetailAPIView(APIView):
 
     def get(self, request, pk):
