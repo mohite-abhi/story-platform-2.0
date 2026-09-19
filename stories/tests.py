@@ -2,7 +2,7 @@ from django.test import TestCase
 from django.urls import reverse
 from .models import Story
 from django.contrib.auth import get_user_model
-
+from rest_framework.test import APITestCase
 
 class StoryListTestCase(TestCase):
     @classmethod
@@ -195,3 +195,265 @@ class StoryDeleteTestCase(TestCase):
         expected_next = reverse("story_delete", args=[story_id])
         self.assertRedirects(response, f"/accounts/login/?next={expected_next}")
         self.assertTrue(Story.objects.filter(id=story_id).exists())
+
+
+class StoryAPITestCase(APITestCase):
+    @classmethod
+    def setUpTestData(cls):
+        User = get_user_model()
+
+        cls.alice = User.objects.create_user(
+            username="alice",
+            password="testpassword",
+            email="alice@email.com"
+        )
+
+        cls.bob = User.objects.create_user(
+            username="bob",
+            password="testpassword",
+            email="bob@email.com"
+        )
+
+        cls.alice_story = Story.objects.create(
+            title="Alice's Story",
+            content="Alice's content",
+            status="draft",
+            author=cls.alice
+        )
+
+    
+    def test_anonymous_can_get_story_list(self):
+        response = self.client.get(
+            reverse("story-list-api")
+        )
+
+        self.assertEqual(response.status_code, 200)
+
+
+    def test_anonymous_cannot_create_story(self):
+        data = {
+            "title": "Anonymous Story",
+            "content": "Anonymous content",
+            "status": "draft",
+        }
+
+        response = self.client.post(
+            reverse("story-list-api"),
+            data=data,
+            format="json",
+        )
+
+        self.assertEqual(response.status_code, 403)
+
+
+    def test_authenticated_user_can_create_story(self):
+        self.client.force_authenticate(user=self.alice)
+
+        data = {
+            "title": "Alice's New Story",
+            "content": "Some story content",
+            "status": "draft",
+        }
+
+        response = self.client.post(
+            reverse("story-list-api"),
+            data=data,
+            format="json",
+        )
+
+        self.assertEqual(response.status_code, 201)
+
+        story = Story.objects.get(title="Alice's New Story")
+
+        self.assertEqual(story.author, self.alice)
+
+
+    def test_authenticated_create_with_missing_title_returns_400(self):
+        self.client.force_authenticate(user=self.alice)
+
+        data = {
+            "content": "Some story content",
+            "status": "draft",
+        }
+
+        story_count = Story.objects.count()
+
+        response = self.client.post(
+            reverse("story-list-api"),
+            data=data,
+            format="json",
+        )
+
+        self.assertEqual(response.status_code, 400)
+        self.assertEqual(Story.objects.count(), story_count)
+
+
+    def test_owner_can_patch_story(self):
+        self.client.force_authenticate(user=self.alice)
+
+        data = {
+            "title": "Alice's Updated Story",
+        }
+
+        response = self.client.patch(
+            reverse("story-detail-api", args=[self.alice_story.id]),
+            data=data,
+            format="json",
+        )
+
+        self.assertEqual(response.status_code, 200)
+
+        self.alice_story.refresh_from_db()
+
+        self.assertEqual(
+            self.alice_story.title,
+            "Alice's Updated Story",
+        )
+
+
+    def test_non_owner_cannot_patch_story(self):
+        self.client.force_authenticate(user=self.bob)
+
+        data = {
+            "title": "Bob Hacked Alice's Story",
+        }
+
+        response = self.client.patch(
+            reverse("story-detail-api", args=[self.alice_story.id]),
+            data=data,
+            format="json",
+        )
+
+        self.assertEqual(response.status_code, 403)
+
+        self.alice_story.refresh_from_db()
+
+        self.assertEqual(
+            self.alice_story.title,
+            "Alice's Story",
+        )
+
+
+    def test_owner_can_delete_story(self):
+        self.client.force_authenticate(user=self.alice)
+
+        story_id = self.alice_story.id
+
+        response = self.client.delete(
+            reverse("story-detail-api", args=[story_id])
+        )
+
+        self.assertEqual(response.status_code, 204)
+        self.assertFalse(
+            Story.objects.filter(id=story_id).exists()
+        )
+
+
+    def test_non_owner_cannot_delete_story(self):
+        self.client.force_authenticate(user=self.bob)
+
+        story_id = self.alice_story.id
+
+        response = self.client.delete(
+            reverse("story-detail-api", args=[story_id])
+        )
+
+        self.assertEqual(response.status_code, 403)
+
+        self.assertTrue(
+            Story.objects.filter(id=story_id).exists()
+        )
+
+
+    def test_nonexistent_story_returns_404(self):
+        response = self.client.get(
+            reverse("story-detail-api", args=[999999])
+        )
+
+        self.assertEqual(response.status_code, 404)
+
+
+    def test_client_cannot_set_story_author(self):
+        self.client.force_authenticate(user=self.alice)
+
+        data = {
+            "title": "Tampered Story",
+            "content": "Trying to change ownership",
+            "status": "draft",
+            "author": self.bob.id,
+        }
+
+        response = self.client.post(
+            reverse("story-list-api"),
+            data=data,
+            format="json",
+        )
+
+        self.assertEqual(response.status_code, 201)
+
+        story = Story.objects.get(title="Tampered Story")
+
+        self.assertEqual(story.author, self.alice)
+        self.assertNotEqual(story.author, self.bob)
+
+
+    def test_owner_can_put_story(self):
+        self.client.force_authenticate(user=self.alice)
+
+        data = {
+            "title": "Alice's Replaced Story",
+            "content": "Completely updated content",
+            "status": "published",
+        }
+
+        response = self.client.put(
+            reverse("story-detail-api", args=[self.alice_story.id]),
+            data=data,
+            format="json",
+        )
+
+        self.assertEqual(response.status_code, 200)
+
+        self.alice_story.refresh_from_db()
+
+        self.assertEqual(
+            self.alice_story.title,
+            "Alice's Replaced Story",
+        )
+        self.assertEqual(
+            self.alice_story.content,
+            "Completely updated content",
+        )
+        self.assertEqual(
+            self.alice_story.status,
+            "published",
+        )
+        self.assertEqual(
+            self.alice_story.author,
+            self.alice,
+        )
+
+
+    def test_non_owner_cannot_put_story(self):
+        self.client.force_authenticate(user=self.bob)
+
+        data = {
+            "title": "Bob's Attempt",
+            "content": "Bob's content",
+            "status": "published",
+        }
+
+        response = self.client.put(
+            reverse("story-detail-api", args=[self.alice_story.id]),
+            data=data,
+            format="json",
+        )
+
+        self.assertEqual(response.status_code, 403)
+
+        self.alice_story.refresh_from_db()
+
+        self.assertEqual(
+            self.alice_story.title,
+            "Alice's Story",
+        )
