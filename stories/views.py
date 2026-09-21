@@ -14,6 +14,9 @@ from .serializers import StorySerializer
 from rest_framework.permissions import AllowAny, IsAuthenticated
 from .permissions import IsStoryAuthor
 
+from rest_framework.generics import ListCreateAPIView, RetrieveUpdateDestroyAPIView
+
+
 def story_list(request):
     status = request.GET.get('status')
     if status:
@@ -82,127 +85,153 @@ def story_delete(request, story_id):
     return redirect(reverse("story_list"))
 
 
-class StoryListAPIView(APIView):
+# class StoryListAPIView(APIView):
     
+#     def get_permissions(self):
+#         if self.request.method == "POST":
+#             return [IsAuthenticated()]
+        
+#         return [AllowAny()]
+
+#     def get(self, request):
+#         stories = Story.objects.all()
+#         serializer = StorySerializer(stories, many=True)
+
+#         return Response(
+#             serializer.data,
+#             status=status.HTTP_200_OK
+#         )
+
+
+#     def post(self, request):
+#         serializer = StorySerializer(data=request.data)
+
+#         serializer.is_valid(raise_exception=True)
+
+#         story = serializer.save(author=request.user)
+
+#         return Response(
+#             StorySerializer(story).data,
+#             status=status.HTTP_201_CREATED
+#         )
+
+
+class StoryListAPIView(ListCreateAPIView):
+    queryset = Story.objects.all()
+    serializer_class = StorySerializer
+
     def get_permissions(self):
         if self.request.method == "POST":
             return [IsAuthenticated()]
         
         return [AllowAny()]
 
-    def get(self, request):
-        stories = Story.objects.all()
-        serializer = StorySerializer(stories, many=True)
+    def perform_create(self, serializer):
+        serializer.save(author=self.request.user)
 
-        return Response(
-            serializer.data,
-            status=status.HTTP_200_OK
-        )
+# class StoryDetailAPIView(APIView):
 
-
-    def post(self, request):
-        serializer = StorySerializer(data=request.data)
-
-        serializer.is_valid(raise_exception=True)
-
-        story = serializer.save(author=request.user)
-
-        return Response(
-            StorySerializer(story).data,
-            status=status.HTTP_201_CREATED
-        )
+#     def get_permissions(self):
+#         if self.request.method == "GET":
+#             return [AllowAny()]
+        
+#         return [IsStoryAuthor()]
 
 
-class StoryDetailAPIView(APIView):
+#     def get(self, request, pk):
+#         try:
+#             story = Story.objects.get(pk=pk)
+#         except Story.DoesNotExist:
+#             return Response(
+#                 {"detail": "Story not found."},
+#                 status=status.HTTP_404_NOT_FOUND
+#             )
+
+#         serializer = StorySerializer(story)
+
+#         return Response(
+#             serializer.data,
+#             status=status.HTTP_200_OK
+#         )
+
+
+#     def patch(self, request, pk):
+#         try:
+#             story = Story.objects.get(pk=pk)
+#         except Story.DoesNotExist:
+#             return Response(
+#                 {"detail": "Story not found."},
+#                 status=status.HTTP_404_NOT_FOUND
+#             )
+
+#         self.check_object_permissions(request, story)
+
+#         serializer = StorySerializer(
+#             story,
+#             data=request.data,
+#             partial=True
+#         )
+
+#         serializer.is_valid(raise_exception=True)
+
+#         serializer.save()
+
+#         return Response(
+#             serializer.data,
+#             status=status.HTTP_200_OK
+#         )
+
+
+#     def delete(self, request, pk):
+#         try:
+#             story = Story.objects.get(pk=pk)
+#         except Story.DoesNotExist:
+#             return Response(
+#                 {"detail": "Story not found."},
+#                 status=status.HTTP_404_NOT_FOUND
+#             )
+
+#         self.check_object_permissions(request, story)
+
+#         story.delete()
+
+#         return Response(status=status.HTTP_204_NO_CONTENT)
+
+
+#     def put(self, request, pk):
+#         try:
+#             story = Story.objects.get(pk=pk)
+#         except Story.DoesNotExist:
+#             return Response(
+#                 {"detail": "Story not found."},
+#                 status=status.HTTP_404_NOT_FOUND
+#             )
+
+#         self.check_object_permissions(request, story)
+
+#         serializer = StorySerializer(
+#             story,
+#             data=request.data
+#         )
+
+#         serializer.is_valid(raise_exception=True)
+
+#         serializer.save()
+
+#         return Response(
+#             serializer.data,
+#             status=status.HTTP_200_OK
+#         )
+
+
+
+class StoryDetailAPIView(RetrieveUpdateDestroyAPIView):
+
+    queryset = Story.objects.all()
+    serializer_class = StorySerializer
 
     def get_permissions(self):
         if self.request.method == "GET":
             return [AllowAny()]
-        
+
         return [IsStoryAuthor()]
-
-
-    def get(self, request, pk):
-        try:
-            story = Story.objects.get(pk=pk)
-        except Story.DoesNotExist:
-            return Response(
-                {"detail": "Story not found."},
-                status=status.HTTP_404_NOT_FOUND
-            )
-
-        serializer = StorySerializer(story)
-
-        return Response(
-            serializer.data,
-            status=status.HTTP_200_OK
-        )
-
-
-    def patch(self, request, pk):
-        try:
-            story = Story.objects.get(pk=pk)
-        except Story.DoesNotExist:
-            return Response(
-                {"detail": "Story not found."},
-                status=status.HTTP_404_NOT_FOUND
-            )
-
-        self.check_object_permissions(request, story)
-
-        serializer = StorySerializer(
-            story,
-            data=request.data,
-            partial=True
-        )
-
-        serializer.is_valid(raise_exception=True)
-
-        serializer.save()
-
-        return Response(
-            serializer.data,
-            status=status.HTTP_200_OK
-        )
-
-
-    def delete(self, request, pk):
-        try:
-            story = Story.objects.get(pk=pk)
-        except Story.DoesNotExist:
-            return Response(
-                {"detail": "Story not found."},
-                status=status.HTTP_404_NOT_FOUND
-            )
-
-        self.check_object_permissions(request, story)
-
-        story.delete()
-
-        return Response(status=status.HTTP_204_NO_CONTENT)
-
-
-    def put(self, request, pk):
-        try:
-            story = Story.objects.get(pk=pk)
-        except Story.DoesNotExist:
-            return Response(
-                {"detail": "Story not found."},
-                status=status.HTTP_404_NOT_FOUND
-            )
-
-        self.check_object_permissions(request, story)
-
-        serializer = StorySerializer(
-            story,
-            data=request.data
-        )
-
-        serializer.is_valid(raise_exception=True)
-
-        serializer.save()
-
-        return Response(
-            serializer.data,
-            status=status.HTTP_200_OK
-        )
