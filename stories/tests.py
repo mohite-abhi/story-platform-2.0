@@ -221,13 +221,37 @@ class StoryAPITestCase(APITestCase):
             author=cls.alice
         )
 
+        for i in range(2, 8):
+            Story.objects.create(
+                title=f"Alice Story {i}",
+                content=f"Content {i}",
+                status="draft",
+                author=cls.alice
+            )
+
     
     def test_anonymous_can_get_story_list(self):
         response = self.client.get(
-            reverse("story-list-api")
+            reverse("story-list-api") + "?page=1"
         )
 
         self.assertEqual(response.status_code, 200)
+        self.assertEqual(response.data["count"], 7)
+        self.assertEqual(len(response.data["results"]), 5)
+        self.assertIsNone(response.data["previous"])
+        self.assertIsNotNone(response.data["next"])
+
+
+    def test_anonymous_can_get_story_list_page_2(self):
+        response = self.client.get(
+            reverse("story-list-api") + "?page=2"
+        )
+
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(response.data["count"], 7)
+        self.assertEqual(len(response.data["results"]), 2)
+        self.assertIsNotNone(response.data["previous"])
+        self.assertIsNone(response.data["next"])
 
 
     def test_anonymous_cannot_create_story(self):

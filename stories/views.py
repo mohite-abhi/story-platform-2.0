@@ -117,7 +117,7 @@ def story_delete(request, story_id):
 
 
 class StoryListAPIView(ListCreateAPIView):
-    queryset = Story.objects.all()
+    queryset = Story.objects.all().order_by("id")
     serializer_class = StorySerializer
 
     def get_permissions(self):
