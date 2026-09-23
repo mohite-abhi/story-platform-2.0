@@ -16,6 +16,7 @@ from .permissions import IsStoryAuthor
 
 from rest_framework.generics import ListCreateAPIView, RetrieveUpdateDestroyAPIView
 
+from rest_framework.exceptions import ValidationError
 
 def story_list(request):
     status = request.GET.get('status')
@@ -117,8 +118,23 @@ def story_delete(request, story_id):
 
 
 class StoryListAPIView(ListCreateAPIView):
-    queryset = Story.objects.all().order_by("id")
+    # queryset = Story.objects.all().order_by("id")
     serializer_class = StorySerializer
+
+    def get_queryset(self):
+        queryset = Story.objects.all()
+
+        status = self.request.query_params.get("status")
+
+        if status:
+            if status not in Story.Status.values:
+                raise ValidationError({
+                    "status": "Invalid status."
+                })
+            queryset = queryset.filter(status=status)
+
+        return queryset.order_by("id")
+
 
     def get_permissions(self):
         if self.request.method == "POST":

@@ -217,7 +217,7 @@ class StoryAPITestCase(APITestCase):
         cls.alice_story = Story.objects.create(
             title="Alice's Story",
             content="Alice's content",
-            status="draft",
+            status="published",
             author=cls.alice
         )
 
@@ -229,6 +229,46 @@ class StoryAPITestCase(APITestCase):
                 author=cls.alice
             )
 
+
+    def test_anonymous_can_get_story_list_without_filter(self):
+        response = self.client.get(
+            reverse("story-list-api")
+        )
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(response.data["count"], 7)
+
+    def test_anonymous_can_get_story_list_with_filter_status_published(self):
+        response = self.client.get(
+            reverse("story-list-api") + "?status=published"
+        )
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(response.data["count"], 1)
+        self.assertTrue(
+            all(
+                story["status"]  == "published"
+                for story in response.data["results"]
+            )
+        )
+
+    def test_anonymous_can_get_story_list_with_filter_status_draft(self):
+        response = self.client.get(
+            reverse("story-list-api") + "?status=draft"
+        )
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(response.data["count"], 6)
+        self.assertTrue(
+            all(
+                story["status"]  == "draft"
+                for story in response.data["results"]
+            )
+        )
+
+    def test_invalid_status_filter_returns_400(self):
+        response = self.client.get(
+            reverse("story-list-api") + "?status=invalid"
+        )
+        self.assertEqual(response.status_code, 400)
+        self.assertEqual(response.data["status"], "Invalid status.")
     
     def test_anonymous_can_get_story_list(self):
         response = self.client.get(
