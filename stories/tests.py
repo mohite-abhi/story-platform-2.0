@@ -270,6 +270,81 @@ class StoryAPITestCase(APITestCase):
         self.assertEqual(response.status_code, 400)
         self.assertEqual(response.data["status"], "Invalid status.")
     
+    def test_created_at_ordering(self):
+        response = self.client.get(
+            reverse("story-list-api") + "?ordering=created_at"
+        )
+
+        self.assertEqual(response.status_code, 200)
+        
+        expected_ids = list(
+            Story.objects
+            .order_by("created_at", "id")
+            .values_list("id", flat=True)[:5]
+            )
+
+        result_ids = [row["id"] for row in response.data["results"]]
+        self.assertEqual(expected_ids, result_ids)
+
+    def test_created_at_ordering_descending(self):
+        response = self.client.get(
+            reverse("story-list-api") + "?ordering=-created_at"
+        )
+
+        self.assertEqual(response.status_code, 200)
+        
+        expected_ids = list(
+            Story.objects
+            .order_by("-created_at", "id")
+            .values_list("id", flat=True)[:5]
+            )
+
+        result_ids = [row["id"] for row in response.data["results"]]
+        self.assertEqual(expected_ids, result_ids)
+
+
+    def test_filter_by_status_and_order_by_created_at_descending(self):
+        response = self.client.get(
+            reverse("story-list-api") + "?status=draft&ordering=-created_at"
+        )
+
+        self.assertEqual(response.status_code, 200)
+        
+        expected_ids = list(
+            Story.objects
+            .filter(status="draft")
+            .order_by("-created_at", "id")
+            .values_list("id", flat=True)[:5]
+            )
+
+        result_ids = [row["id"] for row in response.data["results"]]
+        self.assertEqual(expected_ids, result_ids)
+
+    def test_filter_by_status_and_order_by_created_at_descending_with_pagination(self):
+        response = self.client.get(
+            reverse("story-list-api") + "?status=draft&ordering=-created_at&page=2"
+        )
+
+        self.assertEqual(response.status_code, 200)
+        
+        expected_ids = list(
+            Story.objects
+            .filter(status="draft")
+            .order_by("-created_at", "id")
+            .values_list("id", flat=True)[5:]
+            )
+
+        result_ids = [row["id"] for row in response.data["results"]]
+        self.assertEqual(expected_ids, result_ids)
+
+    def test_invalid_ordering(self):
+        response = self.client.get(
+            reverse("story-list-api") + "?ordering=invalid"
+        )
+
+        self.assertEqual(response.status_code, 400)
+        self.assertEqual(response.data["ordering"], "Invalid ordering field.")
+
     def test_anonymous_can_get_story_list(self):
         response = self.client.get(
             reverse("story-list-api") + "?page=1"

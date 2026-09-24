@@ -121,10 +121,20 @@ class StoryListAPIView(ListCreateAPIView):
     # queryset = Story.objects.all().order_by("id")
     serializer_class = StorySerializer
 
+    allowed_ordering_fields = {
+        "id",
+        "title",
+        "created_at",
+        "updated_at",
+    }
+
+
     def get_queryset(self):
         queryset = Story.objects.all()
 
         status = self.request.query_params.get("status")
+        ordering = self.request.query_params.get("ordering")
+
 
         if status:
             if status not in Story.Status.values:
@@ -133,7 +143,18 @@ class StoryListAPIView(ListCreateAPIView):
                 })
             queryset = queryset.filter(status=status)
 
-        return queryset.order_by("id")
+        if ordering:
+            ordering_field = ordering.lstrip("-")
+            if ordering_field not in self.allowed_ordering_fields:
+                raise ValidationError({
+                    "ordering": "Invalid ordering field."
+                })
+            queryset = queryset.order_by(ordering, "id")
+
+        else:
+            queryset = queryset.order_by("id")
+
+        return queryset
 
 
     def get_permissions(self):
