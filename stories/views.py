@@ -18,6 +18,9 @@ from rest_framework.generics import ListCreateAPIView, RetrieveUpdateDestroyAPIV
 
 from rest_framework.exceptions import ValidationError
 
+from rest_framework.viewsets import ModelViewSet
+
+
 def story_list(request):
     status = request.GET.get('status')
     if status:
@@ -85,40 +88,72 @@ def story_delete(request, story_id):
 
     return redirect(reverse("story_list"))
 
+# API Views
+# class StoryListAPIView(ListCreateAPIView):
+#     # queryset = Story.objects.all().order_by("id")
+#     serializer_class = StorySerializer
 
-# class StoryListAPIView(APIView):
-    
+#     allowed_ordering_fields = {
+#         "id",
+#         "title",
+#         "created_at",
+#         "updated_at",
+#     }
+
+
+#     def get_queryset(self):
+#         queryset = Story.objects.all()
+
+#         status = self.request.query_params.get("status")
+#         ordering = self.request.query_params.get("ordering")
+
+
+#         if status:
+#             if status not in Story.Status.values:
+#                 raise ValidationError({
+#                     "status": "Invalid status."
+#                 })
+#             queryset = queryset.filter(status=status)
+
+#         if ordering:
+#             ordering_field = ordering.lstrip("-")
+#             if ordering_field not in self.allowed_ordering_fields:
+#                 raise ValidationError({
+#                     "ordering": "Invalid ordering field."
+#                 })
+#             queryset = queryset.order_by(ordering, "id")
+
+#         else:
+#             queryset = queryset.order_by("id")
+
+#         return queryset
+
+
 #     def get_permissions(self):
 #         if self.request.method == "POST":
 #             return [IsAuthenticated()]
         
 #         return [AllowAny()]
 
-#     def get(self, request):
-#         stories = Story.objects.all()
-#         serializer = StorySerializer(stories, many=True)
-
-#         return Response(
-#             serializer.data,
-#             status=status.HTTP_200_OK
-#         )
+#     def perform_create(self, serializer):
+#         serializer.save(author=self.request.user)
 
 
-#     def post(self, request):
-#         serializer = StorySerializer(data=request.data)
+# class StoryDetailAPIView(RetrieveUpdateDestroyAPIView):
 
-#         serializer.is_valid(raise_exception=True)
+#     queryset = Story.objects.all()
+#     serializer_class = StorySerializer
 
-#         story = serializer.save(author=request.user)
+#     def get_permissions(self):
+#         if self.request.method == "GET":
+#             return [AllowAny()]
 
-#         return Response(
-#             StorySerializer(story).data,
-#             status=status.HTTP_201_CREATED
-#         )
+#         return [IsStoryAuthor()]
 
 
-class StoryListAPIView(ListCreateAPIView):
-    # queryset = Story.objects.all().order_by("id")
+# ViewSets
+class StoryViewSet(ModelViewSet):
+
     serializer_class = StorySerializer
 
     allowed_ordering_fields = {
@@ -127,7 +162,6 @@ class StoryListAPIView(ListCreateAPIView):
         "created_at",
         "updated_at",
     }
-
 
     def get_queryset(self):
         queryset = Story.objects.all()
@@ -156,119 +190,17 @@ class StoryListAPIView(ListCreateAPIView):
 
         return queryset
 
-
     def get_permissions(self):
-        if self.request.method == "POST":
+        if self.action == "create":
             return [IsAuthenticated()]
-        
-        return [AllowAny()]
 
-    def perform_create(self, serializer):
-        serializer.save(author=self.request.user)
+        if self.action == "list":
+            return [AllowAny()]
 
-# class StoryDetailAPIView(APIView):
-
-#     def get_permissions(self):
-#         if self.request.method == "GET":
-#             return [AllowAny()]
-        
-#         return [IsStoryAuthor()]
-
-
-#     def get(self, request, pk):
-#         try:
-#             story = Story.objects.get(pk=pk)
-#         except Story.DoesNotExist:
-#             return Response(
-#                 {"detail": "Story not found."},
-#                 status=status.HTTP_404_NOT_FOUND
-#             )
-
-#         serializer = StorySerializer(story)
-
-#         return Response(
-#             serializer.data,
-#             status=status.HTTP_200_OK
-#         )
-
-
-#     def patch(self, request, pk):
-#         try:
-#             story = Story.objects.get(pk=pk)
-#         except Story.DoesNotExist:
-#             return Response(
-#                 {"detail": "Story not found."},
-#                 status=status.HTTP_404_NOT_FOUND
-#             )
-
-#         self.check_object_permissions(request, story)
-
-#         serializer = StorySerializer(
-#             story,
-#             data=request.data,
-#             partial=True
-#         )
-
-#         serializer.is_valid(raise_exception=True)
-
-#         serializer.save()
-
-#         return Response(
-#             serializer.data,
-#             status=status.HTTP_200_OK
-#         )
-
-
-#     def delete(self, request, pk):
-#         try:
-#             story = Story.objects.get(pk=pk)
-#         except Story.DoesNotExist:
-#             return Response(
-#                 {"detail": "Story not found."},
-#                 status=status.HTTP_404_NOT_FOUND
-#             )
-
-#         self.check_object_permissions(request, story)
-
-#         story.delete()
-
-#         return Response(status=status.HTTP_204_NO_CONTENT)
-
-
-#     def put(self, request, pk):
-#         try:
-#             story = Story.objects.get(pk=pk)
-#         except Story.DoesNotExist:
-#             return Response(
-#                 {"detail": "Story not found."},
-#                 status=status.HTTP_404_NOT_FOUND
-#             )
-
-#         self.check_object_permissions(request, story)
-
-#         serializer = StorySerializer(
-#             story,
-#             data=request.data
-#         )
-
-#         serializer.is_valid(raise_exception=True)
-
-#         serializer.save()
-
-#         return Response(
-#             serializer.data,
-#             status=status.HTTP_200_OK
-#         )
-
-
-
-class StoryDetailAPIView(RetrieveUpdateDestroyAPIView):
-
-    queryset = Story.objects.all()
-    serializer_class = StorySerializer
-
-    def get_permissions(self):
-        if self.request.method == "GET":
+        if self.action == "retrieve":
             return [AllowAny()]
 
         return [IsStoryAuthor()]
+
+    def perform_create(self, serializer):
+        serializer.save(author=self.request.user)

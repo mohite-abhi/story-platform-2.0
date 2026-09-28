@@ -232,14 +232,14 @@ class StoryAPITestCase(APITestCase):
 
     def test_anonymous_can_get_story_list_without_filter(self):
         response = self.client.get(
-            reverse("story-list-api")
+            reverse("story-list")
         )
         self.assertEqual(response.status_code, 200)
         self.assertEqual(response.data["count"], 7)
 
     def test_anonymous_can_get_story_list_with_filter_status_published(self):
         response = self.client.get(
-            reverse("story-list-api") + "?status=published"
+            reverse("story-list") + "?status=published"
         )
         self.assertEqual(response.status_code, 200)
         self.assertEqual(response.data["count"], 1)
@@ -252,7 +252,7 @@ class StoryAPITestCase(APITestCase):
 
     def test_anonymous_can_get_story_list_with_filter_status_draft(self):
         response = self.client.get(
-            reverse("story-list-api") + "?status=draft"
+            reverse("story-list") + "?status=draft"
         )
         self.assertEqual(response.status_code, 200)
         self.assertEqual(response.data["count"], 6)
@@ -265,14 +265,14 @@ class StoryAPITestCase(APITestCase):
 
     def test_invalid_status_filter_returns_400(self):
         response = self.client.get(
-            reverse("story-list-api") + "?status=invalid"
+            reverse("story-list") + "?status=invalid"
         )
         self.assertEqual(response.status_code, 400)
         self.assertEqual(response.data["status"], "Invalid status.")
     
     def test_created_at_ordering(self):
         response = self.client.get(
-            reverse("story-list-api") + "?ordering=created_at"
+            reverse("story-list") + "?ordering=created_at"
         )
 
         self.assertEqual(response.status_code, 200)
@@ -288,7 +288,7 @@ class StoryAPITestCase(APITestCase):
 
     def test_created_at_ordering_descending(self):
         response = self.client.get(
-            reverse("story-list-api") + "?ordering=-created_at"
+            reverse("story-list") + "?ordering=-created_at"
         )
 
         self.assertEqual(response.status_code, 200)
@@ -305,7 +305,7 @@ class StoryAPITestCase(APITestCase):
 
     def test_filter_by_status_and_order_by_created_at_descending(self):
         response = self.client.get(
-            reverse("story-list-api") + "?status=draft&ordering=-created_at"
+            reverse("story-list") + "?status=draft&ordering=-created_at"
         )
 
         self.assertEqual(response.status_code, 200)
@@ -322,7 +322,7 @@ class StoryAPITestCase(APITestCase):
 
     def test_filter_by_status_and_order_by_created_at_descending_with_pagination(self):
         response = self.client.get(
-            reverse("story-list-api") + "?status=draft&ordering=-created_at&page=2"
+            reverse("story-list") + "?status=draft&ordering=-created_at&page=2"
         )
 
         self.assertEqual(response.status_code, 200)
@@ -339,7 +339,7 @@ class StoryAPITestCase(APITestCase):
 
     def test_invalid_ordering(self):
         response = self.client.get(
-            reverse("story-list-api") + "?ordering=invalid"
+            reverse("story-list") + "?ordering=invalid"
         )
 
         self.assertEqual(response.status_code, 400)
@@ -347,7 +347,7 @@ class StoryAPITestCase(APITestCase):
 
     def test_anonymous_can_get_story_list(self):
         response = self.client.get(
-            reverse("story-list-api") + "?page=1"
+            reverse("story-list") + "?page=1"
         )
 
         self.assertEqual(response.status_code, 200)
@@ -359,7 +359,7 @@ class StoryAPITestCase(APITestCase):
 
     def test_anonymous_can_get_story_list_page_2(self):
         response = self.client.get(
-            reverse("story-list-api") + "?page=2"
+            reverse("story-list") + "?page=2"
         )
 
         self.assertEqual(response.status_code, 200)
@@ -377,7 +377,7 @@ class StoryAPITestCase(APITestCase):
         }
 
         response = self.client.post(
-            reverse("story-list-api"),
+            reverse("story-list"),
             data=data,
             format="json",
         )
@@ -395,7 +395,7 @@ class StoryAPITestCase(APITestCase):
         }
 
         response = self.client.post(
-            reverse("story-list-api"),
+            reverse("story-list"),
             data=data,
             format="json",
         )
@@ -418,7 +418,7 @@ class StoryAPITestCase(APITestCase):
         story_count = Story.objects.count()
 
         response = self.client.post(
-            reverse("story-list-api"),
+            reverse("story-list"),
             data=data,
             format="json",
         )
@@ -435,7 +435,7 @@ class StoryAPITestCase(APITestCase):
         }
 
         response = self.client.patch(
-            reverse("story-detail-api", args=[self.alice_story.id]),
+            reverse("story-detail", args=[self.alice_story.id]),
             data=data,
             format="json",
         )
@@ -458,7 +458,7 @@ class StoryAPITestCase(APITestCase):
         }
 
         response = self.client.patch(
-            reverse("story-detail-api", args=[self.alice_story.id]),
+            reverse("story-detail", args=[self.alice_story.id]),
             data=data,
             format="json",
         )
@@ -479,7 +479,7 @@ class StoryAPITestCase(APITestCase):
         story_id = self.alice_story.id
 
         response = self.client.delete(
-            reverse("story-detail-api", args=[story_id])
+            reverse("story-detail", args=[story_id])
         )
 
         self.assertEqual(response.status_code, 204)
@@ -494,7 +494,7 @@ class StoryAPITestCase(APITestCase):
         story_id = self.alice_story.id
 
         response = self.client.delete(
-            reverse("story-detail-api", args=[story_id])
+            reverse("story-detail", args=[story_id])
         )
 
         self.assertEqual(response.status_code, 403)
@@ -506,7 +506,7 @@ class StoryAPITestCase(APITestCase):
 
     def test_nonexistent_story_returns_404(self):
         response = self.client.get(
-            reverse("story-detail-api", args=[999999])
+            reverse("story-detail", args=[999999])
         )
 
         self.assertEqual(response.status_code, 404)
@@ -523,7 +523,7 @@ class StoryAPITestCase(APITestCase):
         }
 
         response = self.client.post(
-            reverse("story-list-api"),
+            reverse("story-list"),
             data=data,
             format="json",
         )
@@ -546,7 +546,7 @@ class StoryAPITestCase(APITestCase):
         }
 
         response = self.client.put(
-            reverse("story-detail-api", args=[self.alice_story.id]),
+            reverse("story-detail", args=[self.alice_story.id]),
             data=data,
             format="json",
         )
@@ -583,7 +583,7 @@ class StoryAPITestCase(APITestCase):
         }
 
         response = self.client.put(
-            reverse("story-detail-api", args=[self.alice_story.id]),
+            reverse("story-detail", args=[self.alice_story.id]),
             data=data,
             format="json",
         )
