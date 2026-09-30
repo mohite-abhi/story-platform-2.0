@@ -164,7 +164,9 @@ class StoryViewSet(ModelViewSet):
     }
 
     def get_queryset(self):
-        queryset = Story.objects.all()
+        # queryset = Story.objects.all()
+        queryset = Story.objects.select_related("author")
+
 
         status = self.request.query_params.get("status")
         ordering = self.request.query_params.get("ordering")
