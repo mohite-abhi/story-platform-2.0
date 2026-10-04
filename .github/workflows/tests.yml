@@ -29,6 +29,8 @@ jobs:
       DB_PASSWORD: postgres
       DB_HOST: localhost
       DB_PORT: 5432
+      SECRET_KEY: ci-secret-key-not-used-in-production
+      DEBUG: "False"
 
     steps:
       - name: Checkout repository
