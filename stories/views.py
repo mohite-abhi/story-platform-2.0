@@ -1,6 +1,6 @@
 from django.shortcuts import render, redirect, reverse, get_object_or_404
 from django.http import HttpResponseForbidden
-from .models import Story
+from .models import Story, Comment
 from django.contrib.auth.decorators import login_required
 from .forms import StoryForm
 
@@ -9,16 +9,18 @@ from rest_framework.response import Response
 from rest_framework.views import APIView
 from rest_framework import status
 
-from .serializers import StorySerializer
+from .serializers import StorySerializer, CommentSerializer
 
 from rest_framework.permissions import AllowAny, IsAuthenticated
-from .permissions import IsStoryAuthor
+from .permissions import IsStoryAuthor, IsCommentAuthor
 
 from rest_framework.generics import ListCreateAPIView, RetrieveUpdateDestroyAPIView
 
 from rest_framework.exceptions import ValidationError
 
 from rest_framework.viewsets import ModelViewSet
+
+from rest_framework import mixins, viewsets
 
 
 def story_list(request):
@@ -206,3 +208,56 @@ class StoryViewSet(ModelViewSet):
 
     def perform_create(self, serializer):
         serializer.save(author=self.request.user)
+
+class CommentViewSet(
+    mixins.RetrieveModelMixin,
+    mixins.UpdateModelMixin,
+    mixins.DestroyModelMixin,
+    viewsets.GenericViewSet,
+):
+    serializer_class = CommentSerializer
+
+    def get_queryset(self):
+        return Comment.objects.select_related("author")
+
+    def get_permissions(self):
+        if self.action in ["list", "retrieve"]:
+            return [AllowAny()]
+
+        if self.action == "create":
+            return [IsAuthenticated()]
+
+        return [IsCommentAuthor()]
+
+class StoryCommentListCreateAPIView(ListCreateAPIView):
+    serializer_class = CommentSerializer
+
+    def get_story(self):
+        return get_object_or_404(
+            Story,
+            id=self.kwargs["story_id"],
+        )
+
+    def get_queryset(self):
+        story = self.get_story()
+
+        return (
+            Comment.objects
+            .select_related("author")
+            .filter(story=story)
+            .order_by("id")
+        )
+
+    def get_permissions(self):
+        if self.request.method == "GET":
+            return [AllowAny()]
+
+        return [IsAuthenticated()]
+
+    def perform_create(self, serializer):
+        story = self.get_story()
+
+        serializer.save(
+            story=story,
+            author = self.request.user
+        )

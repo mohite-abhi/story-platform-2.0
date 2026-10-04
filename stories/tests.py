@@ -1,8 +1,9 @@
 from django.test import TestCase
 from django.urls import reverse
-from .models import Story
+from .models import Story, Comment
 from django.contrib.auth import get_user_model
 from rest_framework.test import APITestCase
+from rest_framework import status
 
 class StoryListTestCase(TestCase):
     @classmethod
@@ -596,3 +597,168 @@ class StoryAPITestCase(APITestCase):
             self.alice_story.title,
             "Alice's Story",
         )
+
+class CommentAPITestCase(APITestCase):
+
+    @classmethod
+    def setUpTestData(cls):
+        User = get_user_model()
+        cls.user = User.objects.create_user(
+            username="user1",
+            password="password123",
+            email="user1@email.com",
+        )
+
+        cls.other_user = User.objects.create_user(
+            username="user2",
+            password="password123",
+            email="user2@email.com",
+        )
+
+        cls.story = Story.objects.create(
+            title="Test Story",
+            content="Test story content",
+            status=Story.Status.PUBLISHED,
+            author=cls.user,
+        )
+
+        cls.other_story = Story.objects.create(
+            title="Other Story",
+            content="Other story content",
+            status=Story.Status.PUBLISHED,
+            author=cls.other_user,
+        )
+
+        cls.comment = Comment.objects.create(
+            content="Original comment",
+            story=cls.story,
+            author=cls.user,
+        )
+
+    def test_anonymous_user_can_list_story_comments(self):
+        response = self.client.get(
+            reverse("story-comments", kwargs={"story_id": self.story.id})
+        )
+
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
+
+    def test_authenticated_user_can_create_comment(self):
+        self.client.force_authenticate(user=self.user)
+
+        response = self.client.post(
+            reverse("story-comments", kwargs={"story_id": self.story.id}),
+            {"content": "My first comment"},
+        )
+
+        self.assertEqual(response.status_code, status.HTTP_201_CREATED)
+
+        comment = Comment.objects.get(id=response.data["id"])
+
+        self.assertEqual(comment.content, "My first comment")
+        self.assertEqual(comment.story, self.story)
+        self.assertEqual(comment.author, self.user)
+
+    def test_anonymous_user_cannot_create_comment(self):
+        response = self.client.post(
+            reverse("story-comments", kwargs={"story_id": self.story.id}),
+            {"content": "Anonymous comment"},
+        )
+
+        self.assertEqual(response.status_code, status.HTTP_403_FORBIDDEN)
+
+    def test_user_can_retrieve_comment(self):
+        self.client.force_authenticate(user=self.user)
+
+        response = self.client.get(
+            reverse("comment-detail", kwargs={"pk": self.comment.id})
+        )
+
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
+
+    def test_comment_author_can_update_comment(self):
+        self.client.force_authenticate(user=self.user)
+
+        response = self.client.patch(
+            reverse("comment-detail", kwargs={"pk": self.comment.id}),
+            {"content": "Updated comment"},
+        )
+
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
+
+        self.comment.refresh_from_db()
+        self.assertEqual(self.comment.content, "Updated comment")
+
+    def test_user_cannot_update_another_users_comment(self):
+        self.client.force_authenticate(user=self.other_user)
+
+        response = self.client.patch(
+            reverse("comment-detail", kwargs={"pk": self.comment.id}),
+            {"content": "I should not be able to do this"},
+        )
+
+        self.assertEqual(response.status_code, status.HTTP_403_FORBIDDEN)
+
+    def test_comment_author_can_delete_comment(self):
+        self.client.force_authenticate(user=self.user)
+
+        response = self.client.delete(
+            reverse("comment-detail", kwargs={"pk": self.comment.id})
+        )
+
+        self.assertEqual(response.status_code, status.HTTP_204_NO_CONTENT)
+
+        self.assertFalse(
+            Comment.objects.filter(id=self.comment.id).exists()
+        )
+
+    def test_user_cannot_delete_another_users_comment(self):
+        self.client.force_authenticate(user=self.other_user)
+
+        response = self.client.delete(
+            reverse("comment-detail", kwargs={"pk": self.comment.id})
+        )
+
+        self.assertEqual(response.status_code, status.HTTP_403_FORBIDDEN)
+
+    def test_comments_for_nonexistent_story_return_404(self):
+        response = self.client.get(
+            reverse("story-comments", kwargs={"story_id": 999999})
+        )
+
+        self.assertEqual(response.status_code, status.HTTP_404_NOT_FOUND)
+
+    def test_story_comments_are_paginated(self):
+        Comment.objects.bulk_create([
+            Comment(
+                content=f"Comment {i}",
+                story=self.story,
+                author=self.user,
+            )
+            for i in range(15)
+        ])
+
+        response = self.client.get(
+            reverse("story-comments", kwargs={"story_id": self.story.id})
+        )
+
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
+        self.assertIn("results", response.data)
+
+    def test_client_cannot_assign_comment_author_or_story(self):
+        self.client.force_authenticate(user=self.user)
+
+        response = self.client.post(
+            reverse("story-comments", kwargs={"story_id": self.story.id}),
+            {
+                "content": "My comment",
+                "author": self.other_user.id,
+                "story": self.other_story.id,
+            },
+        )
+
+        self.assertEqual(response.status_code, status.HTTP_201_CREATED)
+
+        comment = Comment.objects.get(id=response.data["id"])
+
+        self.assertEqual(comment.author, self.user)
+        self.assertEqual(comment.story, self.story)
