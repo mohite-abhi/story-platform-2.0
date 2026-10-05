@@ -269,7 +269,7 @@ class StoryAPITestCase(APITestCase):
             reverse("story-list") + "?status=invalid"
         )
         self.assertEqual(response.status_code, 400)
-        self.assertEqual(response.data["status"], "Invalid status.")
+        self.assertEqual(response.data["status"][0], "Invalid status.")
     
     def test_created_at_ordering(self):
         response = self.client.get(
@@ -344,7 +344,7 @@ class StoryAPITestCase(APITestCase):
         )
 
         self.assertEqual(response.status_code, 400)
-        self.assertEqual(response.data["ordering"], "Invalid ordering field.")
+        self.assertEqual(response.data["ordering"][0], "Invalid ordering field.")
 
     def test_anonymous_can_get_story_list(self):
         response = self.client.get(

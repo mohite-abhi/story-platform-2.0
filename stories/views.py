@@ -177,7 +177,7 @@ class StoryViewSet(ModelViewSet):
         if status:
             if status not in Story.Status.values:
                 raise ValidationError({
-                    "status": "Invalid status."
+                    "status": ["Invalid status."]
                 })
             queryset = queryset.filter(status=status)
 
@@ -185,7 +185,7 @@ class StoryViewSet(ModelViewSet):
             ordering_field = ordering.lstrip("-")
             if ordering_field not in self.allowed_ordering_fields:
                 raise ValidationError({
-                    "ordering": "Invalid ordering field."
+                    "ordering": ["Invalid ordering field."]
                 })
             queryset = queryset.order_by(ordering, "id")
 
