@@ -28,7 +28,7 @@ urlpatterns = [
     path('<int:story_id>/delete/', views.story_delete, name='story_delete'),
     path('api/', include(router.urls)),
     path(
-        'api/stories/<int:story_id>/comments', 
+        'api/stories/<int:story_id>/comments/', 
         views.StoryCommentListCreateAPIView.as_view(),
         name="story-comments",
     ),

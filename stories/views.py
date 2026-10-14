@@ -245,6 +245,16 @@ class StoryCommentListCreateAPIView(ListCreateAPIView):
             Comment.objects
             .select_related("author")
             .filter(story=story)
+            .only(
+                "id",
+                "content",
+                "story_id",
+                "author_id",
+                "created_at",
+                "updated_at",
+                "author__id",
+                "author__username",
+            )
             .order_by("id")
         )
 
