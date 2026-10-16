@@ -22,6 +22,8 @@ from rest_framework.viewsets import ModelViewSet
 
 from rest_framework import mixins, viewsets
 
+from django.core.cache import cache
+from stories.cache_utils import safe_cache_get, safe_cache_set, safe_cache_delete
 
 def story_list(request):
     status = request.GET.get('status')
@@ -153,6 +155,9 @@ def story_delete(request, story_id):
 #         return [IsStoryAuthor()]
 
 
+def story_detail_cache_key(story_id):
+    return f"story:detail:v1:{story_id}"
+
 # ViewSets
 class StoryViewSet(ModelViewSet):
 
@@ -208,6 +213,34 @@ class StoryViewSet(ModelViewSet):
 
     def perform_create(self, serializer):
         serializer.save(author=self.request.user)
+
+
+    def retrieve(self, request, *args, **kwargs):
+        story_id = self.kwargs[self.lookup_field]
+        cache_key = story_detail_cache_key(story_id)
+        
+        cached_data = safe_cache_get(cache_key)
+
+        if cached_data is not None:
+            return Response(cached_data)
+
+        response = super().retrieve(request, *args, **kwargs)
+
+        if response.status_code == 200:
+            
+            safe_cache_set(cache_key, response.data, timeout=300)
+
+        return response
+
+    def perform_update(self, serializer):
+        instance = serializer.save()
+        safe_cache_delete(story_detail_cache_key(instance.pk))
+
+
+    def perform_destroy(self, instance):
+        story_id = instance.pk
+        super().perform_destroy(instance)
+        safe_cache_delete(story_detail_cache_key(story_id))
 
 class CommentViewSet(
     mixins.RetrieveModelMixin,
