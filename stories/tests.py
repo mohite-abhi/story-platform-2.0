@@ -5,6 +5,17 @@ from django.contrib.auth import get_user_model
 from rest_framework.test import APITestCase
 from rest_framework import status
 
+from unittest.mock import patch
+
+from django.core.cache import cache
+from django.db import connection
+from django.test import override_settings
+from django.test.utils import CaptureQueriesContext
+from redis.exceptions import RedisError
+
+from stories.views import story_detail_cache_key
+
+
 class StoryListTestCase(TestCase):
     @classmethod
     def setUpTestData(cls):
@@ -597,6 +608,133 @@ class StoryAPITestCase(APITestCase):
             self.alice_story.title,
             "Alice's Story",
         )
+
+    cache_settings = {
+        "default": {
+            "BACKEND": (
+                "django.core.cache.backends.locmem.LocMemCache"
+            ),
+            "LOCATION": "story-api-cache-tests",
+        }
+    }
+
+    @override_settings(CACHES=cache_settings)
+    def test_story_detail_cache_miss_populates_cache(self):
+        cache.clear()
+
+        story = self.alice_story
+        cache_key = story_detail_cache_key(story.pk)
+
+        self.assertIsNone(cache.get(cache_key))
+
+        response = self.client.get(
+            f"/stories/api/stories/{story.pk}/"
+        )
+
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(response.data["title"], story.title)
+
+        # The response should now be cached.
+        cached_data = cache.get(cache_key)
+        self.assertIsNotNone(cached_data)
+        self.assertEqual(cached_data["title"], story.title)
+
+    @override_settings(CACHES=cache_settings)
+    def test_story_detail_cache_hit_skips_story_query(self):
+        cache.clear()
+
+        story = self.alice_story
+        url = f"/stories/api/stories/{story.pk}/"
+
+        # First request populates the cache.
+        first_response = self.client.get(url)
+        self.assertEqual(first_response.status_code, 200)
+
+        # Second request should be served from the cache.
+        with CaptureQueriesContext(connection) as captured:
+            second_response = self.client.get(url)
+
+        self.assertEqual(second_response.status_code, 200)
+        self.assertEqual(
+            second_response.data,
+            first_response.data,
+        )
+
+        story_queries = [
+            query["sql"]
+            for query in captured.captured_queries
+            if "stories_story" in query["sql"].lower()
+        ]
+
+        self.assertEqual(
+            story_queries,
+            [],
+            "A cache hit should not query the Story table.",
+        )
+
+    @override_settings(CACHES=cache_settings)
+    def test_story_update_invalidates_detail_cache(self):
+        cache.clear()
+
+        story = self.alice_story
+        cache_key = story_detail_cache_key(story.pk)
+        url = f"/stories/api/stories/{story.pk}/"
+
+        # Populate the cache.
+        response = self.client.get(url)
+        self.assertEqual(response.status_code, 200)
+        self.assertIsNotNone(cache.get(cache_key))
+
+        # Authenticate as the story owner and update it.
+        self.client.force_authenticate(user=self.alice)
+
+        updated_title = "Updated Alice Story"
+        update_response = self.client.patch(
+            url,
+            {"title": updated_title},
+            format="json",
+        )
+
+        self.assertEqual(update_response.status_code, 200)
+
+        # The old cache entry should be invalidated.
+        self.assertIsNone(cache.get(cache_key))
+
+        # The next GET should return fresh data and repopulate cache.
+        get_response = self.client.get(url)
+
+        self.assertEqual(get_response.status_code, 200)
+        self.assertEqual(
+            get_response.data["title"],
+            updated_title,
+        )
+        self.assertEqual(
+            cache.get(cache_key)["title"],
+            updated_title,
+        )
+
+    @override_settings(CACHES=cache_settings)
+    def test_story_detail_works_when_cache_read_and_write_fail(self):
+        cache.clear()
+
+        story = self.alice_story
+        url = f"/stories/api/stories/{story.pk}/"
+
+        # Simulate Redis failures for both cache reads and writes.
+        with (
+            patch(
+                "stories.cache_utils.cache.get",
+                side_effect=RedisError("Redis unavailable"),
+            ),
+            patch(
+                "stories.cache_utils.cache.set",
+                side_effect=RedisError("Redis unavailable"),
+            ),
+        ):
+            response = self.client.get(url)
+
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(response.data["title"], story.title)
 
 class CommentAPITestCase(APITestCase):
 
