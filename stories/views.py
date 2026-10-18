@@ -25,6 +25,11 @@ from rest_framework import mixins, viewsets
 from django.core.cache import cache
 from stories.cache_utils import safe_cache_get, safe_cache_set, safe_cache_delete
 
+import logging
+
+logger = logging.getLogger(__name__)
+
+
 def story_list(request):
     status = request.GET.get('status')
     if status:
@@ -214,6 +219,14 @@ class StoryViewSet(ModelViewSet):
     def perform_create(self, serializer):
         serializer.save(author=self.request.user)
 
+        logger.info(
+            "Story created",
+            extra={
+                "story_id": serializer.instance.pk,
+                "user_id": self.request.user.pk,
+            },
+        )
+
 
     def retrieve(self, request, *args, **kwargs):
         story_id = self.kwargs[self.lookup_field]
@@ -236,11 +249,27 @@ class StoryViewSet(ModelViewSet):
         instance = serializer.save()
         safe_cache_delete(story_detail_cache_key(instance.pk))
 
+        logger.info(
+            "Story updated",
+            extra={
+                "story_id": instance.pk,
+                "user_id": self.request.user.pk,
+            },
+        )
+
 
     def perform_destroy(self, instance):
         story_id = instance.pk
         super().perform_destroy(instance)
         safe_cache_delete(story_detail_cache_key(story_id))
+
+        logger.info(
+            "Story deleted",
+            extra={
+                "story_id": story_id,
+                "user_id": self.request.user.pk,
+            },
+        )
 
 class CommentViewSet(
     mixins.RetrieveModelMixin,
@@ -300,7 +329,16 @@ class StoryCommentListCreateAPIView(ListCreateAPIView):
     def perform_create(self, serializer):
         story = self.get_story()
 
-        serializer.save(
+        comment = serializer.save(
             story=story,
             author = self.request.user
+        )
+
+        logger.info(
+            "Comment created",
+            extra={
+                "comment_id": comment.pk,
+                "story_id": story.pk,
+                "user_id": self.request.user.pk,
+            },
         )

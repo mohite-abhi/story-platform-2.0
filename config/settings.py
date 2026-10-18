@@ -46,6 +46,7 @@ INSTALLED_APPS = [
 
 MIDDLEWARE = [
     'django.middleware.security.SecurityMiddleware',
+    'config.middleware.RequestIDMiddleware',
     'django.contrib.sessions.middleware.SessionMiddleware',
     'django.middleware.common.CommonMiddleware',
     'django.middleware.csrf.CsrfViewMiddleware',
@@ -146,4 +147,48 @@ REST_FRAMEWORK = {
     "DEFAULT_PAGINATION_CLASS": "rest_framework.pagination.PageNumberPagination",
     "PAGE_SIZE": 5,
     "EXCEPTION_HANDLER": "stories.exceptions.custom_exception_handler",
+}
+
+
+# Logging configuration
+
+
+LOGGING = {
+    "version": 1,
+    "disable_existing_loggers": False,
+    "formatters": {
+        "standard": {
+            "format": (
+                "%(asctime)s %(levelname)s %(name)s "
+                "request_id=%(request_id)s %(message)s "
+                "story_id=%(story_id)s "
+                "comment_id=%(comment_id)s "
+                "user_id=%(user_id)s"
+            ),
+        },
+    },
+    "filters": {
+        "request_id": {
+            "()": "config.logging_filters.RequestIDFilter",
+        },
+    },
+    "handlers": {
+        "console": {
+            "class": "logging.StreamHandler",
+            "formatter": "standard",
+            "filters": ["request_id"],
+        },
+    },
+    "loggers": {
+        "stories": {
+            "handlers": ["console"],
+            "level": os.getenv("DJANGO_LOG_LEVEL", "INFO"),
+            "propagate": False,
+        },
+        "django.request": {
+            "handlers": ["console"],
+            "level": "WARNING",
+            "propagate": False,
+        },
+    },
 }
