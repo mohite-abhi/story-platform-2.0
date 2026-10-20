@@ -35,6 +35,9 @@ DB_USER
 DB_PASSWORD
 DB_HOST
 DB_PORT
+REDIS_URL
+CELERY_BROKER_URL
+CELERY_RESULT_BACKEND
 ```
 ## Running with Docker Compose
 
@@ -86,3 +89,34 @@ docker compose down
 This removes the containers but preserves the PostgreSQL data stored in the `postgres_data` Docker volume.
 
 > Do not use `docker compose down -v` unless you intentionally want to delete the PostgreSQL volume and its data.
+
+
+
+## Running locally
+
+### Create a virtual environment and activate it
+
+```bash
+python -m venv .venv
+source .venv/bin/activate
+```
+
+### Install dependencies
+
+```bash
+pip install -r requirement.txt
+```
+
+### Make sure postgres and redis are installed/running in localhost
+
+### Start the application
+
+```bash
+python manage.py runserver
+```
+
+### Start the celery worker in a separate terminal
+
+```bash
+celery -A config worker --loglevel=info
+```
