@@ -203,3 +203,11 @@ CELERY_TASK_TRACK_STARTED = True
 CELERY_TASK_IGNORE_RESULT = False
 
 CELERY_RESULT_BACKEND = os.getenv("CELERY_RESULT_BACKEND", "redis://localhost:6379/3")
+
+
+# Email configuration
+EMAIL_BACKEND = (
+    "django.core.mail.backends.console.EmailBackend"
+)
+
+DEFAULT_FROM_EMAIL = "notifications@storyplatform.com"

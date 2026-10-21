@@ -25,6 +25,10 @@ from rest_framework import mixins, viewsets
 from django.core.cache import cache
 from stories.cache_utils import safe_cache_get, safe_cache_set, safe_cache_delete
 
+from django.db import transaction
+
+from .tasks import send_comment_notification
+
 import logging
 
 logger = logging.getLogger(__name__)
@@ -328,11 +332,17 @@ class StoryCommentListCreateAPIView(ListCreateAPIView):
 
     def perform_create(self, serializer):
         story = self.get_story()
+        
+        with transaction.atomic():
+            comment = serializer.save(
+                story=story,
+                author = self.request.user
+            )
 
-        comment = serializer.save(
-            story=story,
-            author = self.request.user
-        )
+            transaction.on_commit(
+                lambda comment_id=comment.pk:
+                    send_comment_notification.delay(comment_id)
+            )
 
         logger.info(
             "Comment created",
