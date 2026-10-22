@@ -8,8 +8,16 @@ from .models import Comment
 logger = logging.getLogger(__name__)
 
 
-@shared_task
-def send_comment_notification(comment_id):
+@shared_task(
+    bind=True,
+    max_retries=3,
+    retry_backoff=5,
+    retry_backoff_max=60,
+    retry_jitter=True,
+    soft_time_limit=35,
+    time_limit=45,
+)
+def send_comment_notification(self, comment_id):
     try:
         comment = (
             Comment.objects
@@ -57,12 +65,21 @@ def send_comment_notification(comment_id):
                 f"Expected one email to be sent; got {sent_count}"
             )
 
-    except Exception:
-        logger.exception(
-            "Comment notification failed",
+    except (TimeoutError, ConnectionError) as exc:
+        logger.warning(
+            "Transient notification failure",
             extra={
                 "comment_id": comment_id,
-                "story_id": comment.story_id,
+                "retry_number": self.request.retries,
+            },
+        )
+        self.retry(exc=exc)
+
+    except Exception:
+        logger.exception(
+            "Permanent or unexpected notification failure",
+            extra={
+                "comment_id": comment_id,
             },
         )
         raise
@@ -71,7 +88,6 @@ def send_comment_notification(comment_id):
         "Comment notification sent",
         extra={
             "comment_id": comment_id,
-            "story_id": comment.story_id,
         },
     )
 
