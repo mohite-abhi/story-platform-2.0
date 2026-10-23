@@ -73,7 +73,13 @@ def send_comment_notification(self, comment_id):
                 "retry_number": self.request.retries,
             },
         )
-        self.retry(exc=exc)
+        self.retry(
+            exc=exc,
+            countdown=min(
+                5 * (2 ** self.request.retries),
+                60,
+            ),
+        )
 
     except Exception:
         logger.exception(
