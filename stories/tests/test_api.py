@@ -1,6 +1,6 @@
 from django.test import TestCase
 from django.urls import reverse
-from .models import Story, Comment
+from stories.models import Story, Comment
 from django.contrib.auth import get_user_model
 from rest_framework.test import APITestCase
 from rest_framework import status
@@ -14,6 +14,8 @@ from django.test.utils import CaptureQueriesContext
 from redis.exceptions import RedisError
 
 from stories.views import story_detail_cache_key
+
+from django.core import mail
 
 
 class StoryListTestCase(TestCase):
@@ -900,3 +902,5 @@ class CommentAPITestCase(APITestCase):
 
         self.assertEqual(comment.author, self.user)
         self.assertEqual(comment.story, self.story)
+
+
