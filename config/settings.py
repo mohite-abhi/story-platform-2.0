@@ -42,6 +42,7 @@ INSTALLED_APPS = [
     'accounts',
     'stories',
     "rest_framework",
+    "storages",
 ]
 
 MIDDLEWARE = [
@@ -139,6 +140,20 @@ USE_TZ = True
 # https://docs.djangoproject.com/en/6.0/howto/static-files/
 
 STATIC_URL = 'static/'
+
+# AWS S3 configuration
+AWS_STORAGE_BUCKET_NAME = os.getenv("AWS_STORAGE_BUCKET_NAME")
+AWS_S3_REGION_NAME = os.getenv("AWS_S3_REGION_NAME")
+
+# File storage
+STORAGES = {
+    "default": {
+        "BACKEND": "storages.backends.s3.S3Storage",
+    },
+    "staticfiles": {
+        "BACKEND": "django.contrib.staticfiles.storage.StaticFilesStorage",
+    },
+}
 
 AUTH_USER_MODEL = "accounts.User"
 

@@ -17,6 +17,12 @@ from stories.views import story_detail_cache_key
 
 from django.core import mail
 
+from django.core.files.uploadedfile import SimpleUploadedFile
+from stories.models import StoryAttachment
+
+from django.core.files.storage import InMemoryStorage
+
+from rest_framework.test import APITransactionTestCase
 
 class StoryListTestCase(TestCase):
     @classmethod
@@ -904,3 +910,278 @@ class CommentAPITestCase(APITestCase):
         self.assertEqual(comment.story, self.story)
 
 
+@override_settings(
+    STORAGES={
+        "default": {
+            "BACKEND": "django.core.files.storage.InMemoryStorage",
+        },
+        "staticfiles": {
+            "BACKEND": "django.contrib.staticfiles.storage.StaticFilesStorage",
+        },
+    }
+)
+class StoryAttachmentAPITestCase(APITestCase):
+    @classmethod
+    def setUpTestData(cls):
+        User = get_user_model()
+
+        cls.alice = User.objects.create_user(
+            username="attachment_alice",
+            password="testpassword",
+            email="alice@example.com",
+        )
+        cls.bob = User.objects.create_user(
+            username="attachment_bob",
+            password="testpassword",
+            email="bob@example.com",
+        )
+
+        cls.story = Story.objects.create(
+            title="Attachment test story",
+            content="Test content",
+            status="published",
+            author=cls.alice,
+        )
+
+    def upload_url(self):
+        return reverse(
+            "story-attachments",
+            kwargs={"story_id": self.story.pk},
+        )
+
+    def valid_pdf(self):
+        return SimpleUploadedFile(
+            "document.pdf",
+            b"%PDF-1.4\nTest PDF content\n",
+            content_type="application/pdf",
+        )
+
+    def test_owner_can_upload_pdf(self):
+        self.client.force_authenticate(user=self.alice)
+
+        response = self.client.post(
+            self.upload_url(),
+            {"file": self.valid_pdf()},
+            format="multipart",
+        )
+
+        self.assertEqual(response.status_code, status.HTTP_201_CREATED)
+        self.assertEqual(response.data["story_id"], self.story.pk)
+        self.assertEqual(response.data["filename"], "document.pdf")
+        self.assertIn("id", response.data)
+        self.assertIn("created_at", response.data)
+
+        # The response must not expose a file URL or file contents.
+        self.assertNotIn("file", response.data)
+
+        attachment = StoryAttachment.objects.get(
+            pk=response.data["id"]
+        )
+        self.assertEqual(attachment.story, self.story)
+        self.assertEqual(attachment.uploaded_by, self.alice)
+        self.assertEqual(
+            attachment.original_filename,
+            "document.pdf",
+        )
+        
+        self.assertRegex(
+            attachment.file.name,
+            r"^story-attachments/\d{4}/\d{2}/[0-9a-f-]{36}\.pdf$",
+        )
+
+        with attachment.file.open("rb") as uploaded:
+            self.assertEqual(
+                uploaded.read(),
+                b"%PDF-1.4\nTest PDF content\n",
+            )
+
+    def test_anonymous_user_cannot_upload(self):
+        response = self.client.post(
+            self.upload_url(),
+            {"file": self.valid_pdf()},
+            format="multipart",
+        )
+
+        self.assertIn(
+            response.status_code,
+            [
+                status.HTTP_401_UNAUTHORIZED,
+                status.HTTP_403_FORBIDDEN,
+            ],
+        )
+        self.assertEqual(StoryAttachment.objects.count(), 0)
+
+    def test_non_owner_cannot_upload(self):
+        self.client.force_authenticate(user=self.bob)
+
+        response = self.client.post(
+            self.upload_url(),
+            {"file": self.valid_pdf()},
+            format="multipart",
+        )
+
+        self.assertEqual(
+            response.status_code,
+            status.HTTP_403_FORBIDDEN,
+        )
+        self.assertEqual(StoryAttachment.objects.count(), 0)
+
+    def test_invalid_extension_is_rejected(self):
+        self.client.force_authenticate(user=self.alice)
+
+        uploaded = SimpleUploadedFile(
+            "document.txt",
+            b"%PDF-1.4\nTest PDF content\n",
+            content_type="text/plain",
+        )
+
+        response = self.client.post(
+            self.upload_url(),
+            {"file": uploaded},
+            format="multipart",
+        )
+
+        self.assertEqual(
+            response.status_code,
+            status.HTTP_400_BAD_REQUEST,
+        )
+        self.assertEqual(StoryAttachment.objects.count(), 0)
+
+    def test_mismatched_file_signature_is_rejected(self):
+        self.client.force_authenticate(user=self.alice)
+
+        uploaded = SimpleUploadedFile(
+            "fake.pdf",
+            b"This is not a PDF file",
+            content_type="application/pdf",
+        )
+
+        response = self.client.post(
+            self.upload_url(),
+            {"file": uploaded},
+            format="multipart",
+        )
+
+        self.assertEqual(
+            response.status_code,
+            status.HTTP_400_BAD_REQUEST,
+        )
+        self.assertEqual(StoryAttachment.objects.count(), 0)
+
+    def test_oversized_file_is_rejected(self):
+        self.client.force_authenticate(user=self.alice)
+
+        uploaded = SimpleUploadedFile(
+            "large.pdf",
+            b"%PDF-1.4\n" + b"x" * (10 * 1024 * 1024),
+            content_type="application/pdf",
+        )
+
+        response = self.client.post(
+            self.upload_url(),
+            {"file": uploaded},
+            format="multipart",
+        )
+
+        self.assertEqual(
+            response.status_code,
+            status.HTTP_400_BAD_REQUEST,
+        )
+        self.assertEqual(StoryAttachment.objects.count(), 0)
+
+
+
+    @patch.object(StoryAttachment, "save", autospec=True)
+    def test_uploaded_file_is_cleaned_up_if_database_save_fails(
+        self, mock_save
+    ):
+        from django.core.files.storage import default_storage
+
+        self.client.force_authenticate(user=self.alice)
+
+        stored_names = []
+
+        def upload_then_fail(instance, *args, **kwargs):
+            instance.file.save(
+                instance.file.name,
+                instance.file.file,
+                save=False,
+            )
+            stored_names.append(instance.file.name)
+            raise RuntimeError("Simulated database save failure")
+
+        mock_save.side_effect = upload_then_fail
+
+        with self.assertRaises(RuntimeError):
+            self.client.post(
+                self.upload_url(),
+                {"file": self.valid_pdf()},
+                format="multipart",
+            )
+
+        # The test uses the configured in-memory default storage.
+        self.assertEqual(StoryAttachment.objects.count(), 0)
+
+        # No test object should remain in storage.
+        self.assertEqual(len(stored_names), 1)
+        self.assertFalse(default_storage.exists(stored_names[0]))
+
+
+@override_settings(STORAGES={
+    "default": {
+        "BACKEND": "django.core.files.storage.InMemoryStorage",
+    },
+    "staticfiles": {
+        "BACKEND": "django.contrib.staticfiles.storage.StaticFilesStorage",
+    },
+})
+class StoryAttachmentStorageFailureTestCase(APITransactionTestCase):
+
+    def setUp(self):
+        User = get_user_model()
+
+        self.alice = User.objects.create_user(
+            username="storage_alice",
+            password="testpassword",
+            email="storage_alice@example.com",
+        )
+
+        self.story = Story.objects.create(
+            title="Storage Failure Story",
+            content="Testing storage failures",
+            author=self.alice,
+        )
+
+    def upload_url(self):
+        return reverse(
+            "story-attachments",
+            kwargs={"story_id": self.story.pk},
+        )
+
+    def valid_pdf(self):
+        return SimpleUploadedFile(
+            "document.pdf",
+            b"%PDF-1.4\nTest PDF content\n",
+            content_type="application/pdf",
+        )
+
+    @patch.object(
+        InMemoryStorage,
+        "save",
+        side_effect=OSError("Simulated storage upload failure"),
+    )
+    def test_attachment_record_not_created_if_storage_upload_fails(
+        self,
+        mock_save,
+    ):
+        self.client.force_authenticate(user=self.alice)
+
+        with self.assertRaises(OSError):
+            self.client.post(
+                self.upload_url(),
+                {"file": self.valid_pdf()},
+                format="multipart",
+            )
+
+        self.assertEqual(StoryAttachment.objects.count(), 0)
+        mock_save.assert_called_once()

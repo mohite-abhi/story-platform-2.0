@@ -4,7 +4,7 @@ from . import views
 from rest_framework.routers import DefaultRouter
 
 # from .views import StoryListAPIView, StoryDetailAPIView
-from .views import StoryViewSet, CommentViewSet, StoryCommentListCreateAPIView
+from .views import StoryViewSet, CommentViewSet, StoryCommentListCreateAPIView, StoryAttachmentUploadAPIView
 
 router = DefaultRouter()
 
@@ -31,6 +31,11 @@ urlpatterns = [
         'api/stories/<int:story_id>/comments/', 
         views.StoryCommentListCreateAPIView.as_view(),
         name="story-comments",
+    ),
+    path(
+        'api/stories/<int:story_id>/attachments/',
+        views.StoryAttachmentUploadAPIView.as_view(),
+        name='story-attachments',
     ),
     # path('api/stories/', StoryListAPIView.as_view(), name="story-list"),
     # path('api/stories/<int:pk>', StoryDetailAPIView.as_view(), name='story-detail')

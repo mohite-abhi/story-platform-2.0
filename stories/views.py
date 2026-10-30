@@ -1,6 +1,6 @@
 from django.shortcuts import render, redirect, reverse, get_object_or_404
 from django.http import HttpResponseForbidden
-from .models import Story, Comment
+from .models import Story, Comment, StoryAttachment
 from django.contrib.auth.decorators import login_required
 from .forms import StoryForm
 
@@ -9,7 +9,11 @@ from rest_framework.response import Response
 from rest_framework.views import APIView
 from rest_framework import status
 
-from .serializers import StorySerializer, CommentSerializer
+from .serializers import (
+    StorySerializer,
+    CommentSerializer,
+    StoryAttachmentSerializer,
+)
 
 from rest_framework.permissions import AllowAny, IsAuthenticated
 from .permissions import IsStoryAuthor, IsCommentAuthor
@@ -28,6 +32,8 @@ from stories.cache_utils import safe_cache_get, safe_cache_set, safe_cache_delet
 from django.db import transaction
 
 from .tasks import send_comment_notification
+
+from rest_framework.parsers import MultiPartParser, FormParser
 
 import logging
 
@@ -351,4 +357,36 @@ class StoryCommentListCreateAPIView(ListCreateAPIView):
                 "story_id": story.pk,
                 "user_id": self.request.user.pk,
             },
+        )
+
+class StoryAttachmentUploadAPIView(APIView):
+    permission_classes = [IsAuthenticated, IsStoryAuthor]
+    parser_classes = [MultiPartParser, FormParser]
+
+    def post(self, request, story_id):
+        story = get_object_or_404(Story, pk=story_id)
+
+        # Enforce the existing story-author permission on this object.
+        self.check_object_permissions(request, story)
+
+        serializer = StoryAttachmentSerializer(data=request.data)
+        serializer.is_valid(raise_exception=True)
+
+        attachment = serializer.save(
+            story=story,
+            uploaded_by=request.user,
+        )
+
+        logger.info(
+            "Story attachment uploaded",
+            extra={
+                "story_id": story.pk,
+                "attachment_id": attachment.pk,
+                "user_id": request.user.pk,
+            },
+        )
+
+        return Response(
+            StoryAttachmentSerializer(attachment).data,
+            status=status.HTTP_201_CREATED,
         )

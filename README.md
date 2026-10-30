@@ -51,7 +51,7 @@ CELERY_RESULT_BACKEND
 From the project root:
 
 ```bash
-docker compose up --build
+docker compose up -d --build
 ```
 
 The Django application will be available at:
@@ -107,7 +107,13 @@ source .venv/bin/activate
 pip install -r requirement.txt
 ```
 
-### Make sure postgres and redis are installed/running in localhost
+### Make sure postgres is installed/running in localhost
+
+### Make sure redis is running in localhost
+
+```bash
+docker compose up -d redis
+```
 
 ### Start the application
 
